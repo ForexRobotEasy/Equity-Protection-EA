@@ -1,0 +1,136 @@
+mql5
+// +-----------------------------------------------------------------+
+// |                        Equity Protection EA                     |
+// |                Developer: Forex Robot Easy Team                  |
+// |                  Developer's Site: forexroboteasy.com            |
+// +-----------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|                        Global Variables                           |
+//+------------------------------------------------------------------+
+double maxDrawdownLevel = 0.1; // Maximum drawdown level (10%)
+double currentEquity;
+
+//+------------------------------------------------------------------+
+//|                     Expert Advisor Start Function                 |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // Get current equity level
+   currentEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   // Print initial equity level
+   Print('Initial Equity: ', currentEquity);
+
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//|                 Expert Advisor Tick Function                      |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   // Calculate and adjust stop loss levels based on equity level
+   AdjustStopLoss();
+
+   // Monitor and track equity level in real-time
+   MonitorEquityLevel();
+
+   // Set and manage maximum drawdown level for closing positions
+   CheckDrawdownLevel();
+}
+
+//+------------------------------------------------------------------+
+//|               Calculate and Adjust Stop Loss Levels               |
+//+------------------------------------------------------------------+
+void AdjustStopLoss()
+{
+   double stopLossLevel = 0;
+
+   // Calculate stop loss level based on equity level
+   if(currentEquity > 10000)
+   {
+      stopLossLevel = 100;
+   }
+   else if(currentEquity > 5000)
+   {
+      stopLossLevel = 50;
+   }
+   else if(currentEquity > 1000)
+   {
+      stopLossLevel = 25;
+   }
+   else
+   {
+      stopLossLevel = 10;
+   }
+
+   // Set stop loss level for all open positions
+   if(PositionsTotal() > 0)
+   {
+      for(int i = 0; i < PositionsTotal(); i++)
+      {
+         ulong ticket = PositionGetTicket(i);
+         double positionStopLoss = PositionGetDouble(POSITION_SL);
+         
+         if(stopLossLevel < positionStopLoss)
+         {
+            // Adjust stop loss level
+            positionStopLoss = stopLossLevel;
+            PositionModify(ticket, positionStopLoss, 0);
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                 Monitor and Track Equity Level                    |
+//+------------------------------------------------------------------+
+void MonitorEquityLevel()
+{
+   // Get current equity level
+   double newEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   // Check if equity level has changed significantly
+   if(MathAbs(newEquity - currentEquity) > 100)
+   {
+      // Generate alert or notification for significant equity change
+      Alert('Equity change: ', newEquity - currentEquity);
+   }
+
+   // Update current equity level
+   currentEquity = newEquity;
+}
+
+//+------------------------------------------------------------------+
+//|         Set and Manage Maximum Drawdown Level for Closing         |
+//|                            Positions                              |
+//+------------------------------------------------------------------+
+void CheckDrawdownLevel()
+{
+   // Calculate current drawdown level
+   double drawdownLevel = (AccountInfoDouble(ACCOUNT_EQUITY) - AccountInfoDouble(ACCOUNT_BALANCE)) / AccountInfoDouble(ACCOUNT_BALANCE);
+
+   // Check if drawdown level exceeds maximum drawdown level
+   if(drawdownLevel >= maxDrawdownLevel)
+   {
+      // Close all open positions
+      for(int i = 0; i < PositionsTotal(); i++)
+      {
+         ulong ticket = PositionGetTicket(i);
+         PositionClose(ticket);
+      }
+
+      // Generate alert or notification for maximum drawdown level reached
+      Alert('Maximum drawdown level reached! All positions closed.');
+   }
+}
+
+//+------------------------------------------------------------------+
+//|                         Expert Advisor Deinit                     |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+   // Print final equity level
+   Print('Final Equity: ', AccountInfoDouble(ACCOUNT_EQUITY));
+}
